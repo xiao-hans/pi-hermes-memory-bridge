@@ -1,0 +1,11 @@
+{
+  "name": "hermes-memory-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Expose the local pi-hermes-memory store to Cursor via MCP, reusing the installed Pi extension.",
+  "type": "module",
+  "main": "server.mjs",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.0"
+  }
+}
