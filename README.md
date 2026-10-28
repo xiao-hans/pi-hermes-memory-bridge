@@ -27,6 +27,13 @@ node learner.mjs
 
 调用记忆工具时带上当前工作区的绝对路径 `cwd`，项目记忆才会落到对应项目。
 
+## 搜索过滤
+
+扩展只给 `failure` 条目存 `category`，普通记忆和项目记忆没有这个字段。模型带上 `category` 或写错 `project` 时，`memory_search` 会把这些条目滤掉。
+
+- MCP 入口：`memory_search` 查空时，会依次去掉 `category`、`target`、`project` 重搜，见 `memory-search-loose.mjs`。
+- Pi：不经过本仓库。在 `~/.pi/agent/pi-hermes-memory/STANDING.md` 写入常驻指令，告诉模型只在 `target=failure` 时传 `category`，查空后只带 `query` 重搜一次。
+
 ## 不入库的内容
 
 `logs/`、`state/`、`tmp/`、`node_modules/` 是本机运行状态、学习日志和依赖，不包含在仓库里。

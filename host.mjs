@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
 import fs from "node:fs";
+import { searchAttempts } from "./memory-search-loose.mjs";
 
 const HOME = os.homedir();
 
@@ -185,6 +186,24 @@ export async function createHost({ cwd, getBranch = () => [], log = (msg) => con
   };
 
   extension(pi);
+
+  const searchTool = tools.get("memory_search");
+  if (searchTool?.execute) {
+    const inner = searchTool.execute.bind(searchTool);
+    const hitCount = (result) => {
+      if (typeof result?.details?.count === "number") return result.details.count;
+      const text = result?.content?.find((part) => part?.type === "text")?.text ?? "";
+      return text.startsWith("No memories found") ? 0 : text.startsWith("Found ") ? 1 : 0;
+    };
+    searchTool.execute = async (id, params, ...rest) => {
+      let last;
+      for (const attempt of searchAttempts(params ?? {})) {
+        last = await inner(id, attempt, ...rest);
+        if (hitCount(last) > 0) return last;
+      }
+      return last;
+    };
+  }
 
   async function emit(event, payload, ctx = makeCtx()) {
     const results = [];
