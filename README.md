@@ -32,7 +32,7 @@ node learner.mjs
 扩展只给 `failure` 条目存 `category`，普通记忆和项目记忆没有这个字段。模型带上 `category` 或写错 `project` 时，`memory_search` 会把这些条目滤掉。
 
 - MCP 入口：`memory_search` 查空时，会依次去掉 `category`、`target`、`project` 重搜，见 `memory-search-loose.mjs`。
-- Pi：不经过本仓库。在 `~/.pi/agent/pi-hermes-memory/STANDING.md` 写入常驻指令，告诉模型只在 `target=failure` 时传 `category`，查空后只带 `query` 重搜一次。
+- Pi：不经过本仓库。部分模型会被要求填满所有可选参数，提示词约束不住。把 `pi-extension/pi-memory-search.ts` 复制到 `~/.pi/agent/extensions/`，作为本地扩展监听 `tool_result`，`memory_search` 返回 0 条时用扩展自己的搜索工具放宽条件重查，并替换结果。Pi 不允许两个扩展注册同名工具，所以不能直接覆盖 `memory_search`。
 
 ## 不入库的内容
 
