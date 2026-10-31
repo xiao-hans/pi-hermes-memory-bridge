@@ -1,6 +1,6 @@
 # pi-hermes-memory-bridge
 
-让本机已经安装的 [pi-hermes-memory](https://github.com/chandra447/pi-hermes-memory) 成为多个 Agent 共用的记忆引擎。Cursor、Codex、CodeBuddy、WorkBuddy、DeepSeek Harness 读写同一份记忆，历史对话也能互相搜索。Pi 本身直接加载这个扩展，不经过本仓库。
+让本机已经安装的 [pi-hermes-memory](https://github.com/chandra447/pi-hermes-memory) 成为多个 Agent 共用的记忆引擎。Cursor、Claude Code、Codex、CodeBuddy、WorkBuddy、DeepSeek Harness 读写同一份记忆，历史对话也能互相搜索。Pi 本身直接加载这个扩展，不经过本仓库。
 
 桥接只做适配，不复制记忆库，也不修改扩展源码。加锁、条目格式、全文索引和后台回顾都走扩展自己的实现。
 
@@ -26,6 +26,19 @@ node learner.mjs
 `--learner` 会在 MCP 服务存活期间拉起并保活学习进程。DeepSeek Harness、Codex、CodeBuddy、WorkBuddy 没有 Cursor 那种对话钩子，学习进程改为轮询它们的本地会话日志。
 
 调用记忆工具时带上当前工作区的绝对路径 `cwd`，项目记忆才会落到对应项目。
+
+## 接入 Claude Code
+
+注册为用户级 MCP，所有项目可用：
+
+```bash
+claude mcp add-json --scope user hermes-memory "$(cat examples/claude-mcp-server.json)"
+claude mcp get hermes-memory
+```
+
+不传 `--cwd`。Claude Code 在会话启动目录拉起 stdio 服务，服务未拿到 `--cwd` 时用进程目录作为默认工作区，所以项目记忆跟随当前 Claude 会话的目录。调用时传 `cwd` 仍然优先。
+
+Claude Code 没有接入学习进程，它的对话不会写入 `sessions.db`，`session_search` 只能搜到其他 Agent 的会话。Claude 会把服务说明截断到 4096 字符，末尾的工具清单可能被截掉，不影响工具发现。
 
 ## 搜索过滤
 
