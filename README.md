@@ -42,10 +42,12 @@ Claude Code 没有接入学习进程，它的对话不会写入 `sessions.db`，
 
 ## 搜索过滤
 
-扩展只给 `failure` 条目存 `category`，普通记忆和项目记忆没有这个字段。模型带上 `category` 或写错 `project` 时，`memory_search` 会把这些条目滤掉。
+扩展只给 `failure` 条目存 `category`，普通记忆和项目记忆没有这个字段。模型带上 `category` 时，`memory_search` 会把没有这个字段的条目滤掉，即使全文能匹配。
 
-- MCP 入口：`memory_search` 查空时，会依次去掉 `category`、`target`、`project` 重搜，见 `memory-search-loose.mjs`。
+- MCP 入口：`memory_search` 查空时只去掉 `category` 重搜一次，见 `memory-search-loose.mjs` 的 `searchAttempts`。调用者显式传的 `project`、`target` 是身份过滤——查空也不会被去掉或跨目标/项目重搜；不传时按原样全局检索。重试循环在 `runLooseSearch` 里，命中（`hitCount` > 0）立即停止，不会在已经命中后继续放宽。
 - Pi：不经过本仓库。部分模型会被要求填满所有可选参数，提示词约束不住。把 `pi-extension/pi-memory-search.ts` 复制到 `~/.pi/agent/extensions/`，作为本地扩展监听 `tool_result`，`memory_search` 返回 0 条时用扩展自己的搜索工具放宽条件重查，并替换结果。Pi 不允许两个扩展注册同名工具，所以不能直接覆盖 `memory_search`。
+
+跑 `npm test`（`node --test`）验证：显式 `project`/`target` 查空不跨域放宽、未指定过滤仍能全局检索、`category` 重试边界、命中后立即停止，见 `tests/memory-search-loose.test.mjs`（纯合成用例，不依赖真实记忆库）。
 
 ## 不入库的内容
 
