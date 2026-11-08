@@ -141,7 +141,11 @@ function auditChild(conv) {
   const overlapping = activeChildren++ > 0;
   let review;
   try {
-    const prompt = conv.lastChildArgs?.at(-1);
+    let prompt = conv.lastChildArgs?.at(-1);
+    // Extension >=0.10 spawns the review child with the prompt as "@<temp file>"
+    // (pi-child-process.ts writes it to %TEMP% and passes the reference), so the
+    // heading check below never matched and bookkeeping silently stopped.
+    if (typeof prompt === "string" && prompt.startsWith("@")) prompt = fs.readFileSync(prompt.slice(1), "utf8");
     if (typeof prompt === "string" && prompt.includes("--- Conversation to Review ---")) {
       review = describeReview(prompt, reviewedCount(conv.id));
       if (review.mode === "incremental") markReviewed(conv.id, conv.entries.length);
@@ -184,7 +188,7 @@ let lastActivity = Date.now();
 
 /** Short log tag: Cursor conversation ids, or "dsh-" plus the DSH session id. */
 const shortId = (id) => {
-  const prefixed = /^(dsh|codebuddy|workbuddy|codex)-/.exec(id);
+  const prefixed = /^(dsh|codebuddy|workbuddy|codex|claude)-/.exec(id);
   if (prefixed) return `${prefixed[1]}-${id.slice(prefixed[0].length).replace(/^session-/, "").slice(0, 8)}`;
   return id.slice(0, 8);
 };

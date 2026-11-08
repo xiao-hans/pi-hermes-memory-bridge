@@ -11,7 +11,7 @@
 | `server.mjs` | MCP 服务。暴露 `memory_search`、`memory_add`、`memory_replace`、`memory_remove`、`session_search`、`skill_manage` |
 | `learner.mjs` | 后台学习。把各 Agent 的会话重放成扩展的事件，由扩展自己决定何时回顾、写入 |
 
-会话写入 `sessions.db` 时带来源前缀：`cursor-`、`dsh-`、`codex-`、`codebuddy-`、`workbuddy-`。Pi 的会话保持原生日志号。记忆正文（`MEMORY.md`、`USER.md`、`failures.md`）不记录是哪个 Agent 写的。
+会话写入 `sessions.db` 时带来源前缀：`cursor-`、`dsh-`、`codex-`、`codebuddy-`、`workbuddy-`、`claude-`。Pi 的会话保持原生日志号。记忆正文（`MEMORY.md`、`USER.md`、`failures.md`）不记录是哪个 Agent 写的。
 
 ## 运行
 
@@ -23,7 +23,7 @@ node server.mjs --learner
 node learner.mjs
 ```
 
-`--learner` 会在 MCP 服务存活期间拉起并保活学习进程。DeepSeek Harness、Codex、CodeBuddy、WorkBuddy 没有 Cursor 那种对话钩子，学习进程改为轮询它们的本地会话日志。
+`--learner` 会在 MCP 服务存活期间拉起并保活学习进程。DeepSeek Harness、Codex、CodeBuddy、WorkBuddy、Claude Code 不走对话钩子，学习进程轮询它们的本地会话日志。
 
 调用记忆工具时带上当前工作区的绝对路径 `cwd`，项目记忆才会落到对应项目。
 
@@ -38,7 +38,7 @@ claude mcp get hermes-memory
 
 不传 `--cwd`。Claude Code 在会话启动目录拉起 stdio 服务，服务未拿到 `--cwd` 时用进程目录作为默认工作区，所以项目记忆跟随当前 Claude 会话的目录。调用时传 `cwd` 仍然优先。
 
-Claude Code 没有接入学习进程，它的对话不会写入 `sessions.db`，`session_search` 只能搜到其他 Agent 的会话。Claude 会把服务说明截断到 4096 字符，末尾的工具清单可能被截掉，不影响工具发现。
+学习进程轮询 `~/.claude/projects/<项目>/<会话>.jsonl`：进程启动前已有的会话只写入 `sessions.db` 供 `session_search` 检索，启动后新增的内容才送去回顾。只取真实的用户/助手轮次，钩子附件、请求记录和工具结果不进入。Claude 会把服务说明截断到 4096 字符，末尾的工具清单可能被截掉，不影响工具发现。
 
 ## 搜索过滤
 

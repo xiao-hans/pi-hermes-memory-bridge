@@ -1,5 +1,6 @@
-// Codex, CodeBuddy and WorkBuddy session logs. Each parser returns the same
-// shape DSH uses, so the learner can replay them through one extension instance.
+// Codex, CodeBuddy, WorkBuddy and Claude Code session logs. Each parser
+// returns the same shape DSH uses, so the learner can replay them through
+// one extension instance.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -71,6 +72,11 @@ export function listWorkBuddySessions() {
   return listProjectJsonl(path.join(HOME, ".workbuddy", "projects"));
 }
 
+/** Claude Code sessions share the same <slug>/<uuid>.jsonl layout as CodeBuddy/WorkBuddy. */
+export function listClaudeSessions() {
+  return listProjectJsonl(path.join(HOME, ".claude", "projects"));
+}
+
 export function listCodexSessions() {
   const root = path.join(HOME, ".codex", "sessions");
   const out = [];
@@ -116,8 +122,47 @@ export function parseCodexLine(line, index) {
   return null;
 }
 
+/**
+ * Claude Code JSONL: every row carries a top-level `cwd`, `timestamp` and
+ * `type` ("user"/"assistant"/"system"/"attachment"/"queue-operation"/
+ * "api-request*"). Only "user"/"assistant" rows are real conversation turns;
+ * the rest (hook output, request telemetry) are skipped by construction since
+ * only those two types are handled below.
+ */
+export function parseClaudeHeader(lines) {
+  for (const line of lines) {
+    let row;
+    try { row = JSON.parse(line); } catch { continue; }
+    if (typeof row.cwd === "string" && row.cwd) {
+      return { cwd: row.cwd, createdAt: row.timestamp ?? Date.now() };
+    }
+  }
+  return { cwd: null, createdAt: Date.now() };
+}
+
+export function parseClaudeLine(line, index) {
+  let row;
+  try { row = JSON.parse(line); } catch { return null; }
+  if (row.type !== "user" && row.type !== "assistant") return null;
+  const message = row.message;
+  if (message?.role !== "user" && message?.role !== "assistant") return null;
+  if (message.role === "user") {
+    // Real user turns have string content; tool_result turns are a content
+    // array with no "text"/"input_text"/"output_text" block, so textBlocks()
+    // naturally yields "" for them and they are skipped.
+    const raw = typeof message.content === "string" ? message.content : textBlocks(message.content);
+    const text = cleanUser(raw.trim());
+    return text ? { seq: index, time: row.timestamp, role: "user", text, toolNames: [] } : null;
+  }
+  const blocks = Array.isArray(message.content) ? message.content : [];
+  const text = textBlocks(blocks);
+  const toolNames = blocks.filter((block) => block?.type === "tool_use" && typeof block.name === "string").map((block) => block.name);
+  return text || toolNames.length ? { seq: index, time: row.timestamp, role: "assistant", text, toolNames } : null;
+}
+
 export const polledAgents = [
   { name: "codebuddy", list: listCodeBuddySessions, parseHeader: parseBuddyHeader, parseLine: parseBuddyLine },
   { name: "workbuddy", list: listWorkBuddySessions, parseHeader: parseBuddyHeader, parseLine: parseBuddyLine },
   { name: "codex", list: listCodexSessions, parseHeader: parseCodexHeader, parseLine: parseCodexLine },
+  { name: "claude", list: listClaudeSessions, parseHeader: parseClaudeHeader, parseLine: parseClaudeLine },
 ];
