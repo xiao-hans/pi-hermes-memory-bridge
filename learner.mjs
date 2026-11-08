@@ -209,12 +209,13 @@ async function createConversation({ id, cwd, transcript = null, contextMessages 
   conv.host = await createHost({
     cwd,
     getBranch: () => {
-      // Reviews re-read the whole conversation; mark what earlier reviews
-      // already covered so the same facts are not saved again.
+      // Reviews only see a short tail of already-reviewed entries plus the new
+      // ones. REVIEW_NOTE must stay: describeReview() checks for it to report
+      // mode=incremental, which is what advances markReviewed() bookkeeping.
       const reviewed = conv.childKind === "review" ? reviewedCount(id) : 0;
       if (reviewed > 0 && reviewed < entries.length) {
         return [
-          ...entries.slice(0, reviewed),
+          ...entries.slice(Math.max(0, reviewed - 20), reviewed),
           { type: "message", message: textMessage("user", REVIEW_NOTE) },
           ...entries.slice(reviewed),
         ];
